@@ -1,8 +1,11 @@
 let swing;
 let direction = 1;
+let keyX = 240;
+let keyY = 245;
 let swim_speed = 0.5;
 let fishX = 75;
 let fishDirection = 1;
+let hoveringKey = false;
 
 function setup() {
   createCanvas(600,500);
@@ -11,6 +14,7 @@ function setup() {
 
 function draw() {
   background(217,175,182);
+  strokeWeight(2);
   
   //For Room 
   line(300,0,300,400);
@@ -42,7 +46,7 @@ function draw() {
   
   line(240,225,240,240);
   
-//---------------------------------------------
+  hoveringKey = dist(mouseX, mouseY, 240, 245) < 20;
   drawKey()
   
   swing +=0.01 * direction;
@@ -61,18 +65,29 @@ function draw() {
 
 if (fishX > 100 || fishX < 50) {
   fishDirection *= -1;
-   }
+ }
+
 }
 
+
 function drawKey(){
-   push();
+   
+  push();
   
    translate(240,245);
    rotate(swing);
- 
+  
+//hover effect
+  if(hoveringKey){
+    stroke("green");
+    strokeWeight(4);
+    fill(220);
+  }
+  else{
     stroke(0);
     strokeWeight(2);
     fill("grey");
+  }
   
   // key ring
   circle(0,0,10);
@@ -122,6 +137,7 @@ function drawTable(x,y,w,h){
   
   //front side
   fill("peru");
+  
   beginShape();
   vertex(x + 40, y + 30);
   vertex(x + w + 40, y - 20);
@@ -131,6 +147,7 @@ function drawTable(x,y,w,h){
   
   //left side 
   fill("sienna");
+  
   beginShape();
   vertex(x, y);
   vertex(x + 40, y + 30);
@@ -146,6 +163,7 @@ function drawTable(x,y,w,h){
   line(x + 40, y + 70, x + w + 40, y + 20)
 
   pop();   
+
 }
 //-----------------------------------------------------
 function drawFishTank(x,y){
