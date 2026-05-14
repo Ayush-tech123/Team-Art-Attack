@@ -61,8 +61,14 @@ let speed = 0;
 let maxSpeedPetrol = 160, maxSpeedEV = 130;
 let accelPetrol = 0.7, accelEV = 0.4;
 let brakeStrength = 2.0, friction = 0.18;
-let fuel = 100, battery = 100;
-let fuelDrain = 0.025, batteryDrain = 0.015;
+let petrolTankCapacity = 40; // litres
+let petrolMileage = 18; // km per litre
+let fuel = petrolTankCapacity;
+
+// EV
+let batteryCapacity = 50; // kWh
+let evEfficiency = 6; // km per kWh
+let battery = batteryCapacity;
 let accelPressed = false, brakePressed = false;
 let distanceTravelled = 0;
 
@@ -124,13 +130,22 @@ let endingAlpha = 0, endCarX = -50;
 // =====================
 let fadeAlpha = 0, fadingOut = false, fadeTargetScene = "";
 
+//Adding Sounds
+let petrolSound;
+let evSound;
+
 // =====================
 // SETUP
 // =====================
+
+
 function setup() {
   createCanvas(600, 500);
   swing = radians(45);
   textFont("Georgia");
+  petrolSound = loadSound("sounds/petrol_drive.mp3");
+
+  evSound = loadSound("sounds/ev_drive.mp3");
 }
 
 // =====================
@@ -292,24 +307,15 @@ function drawHouseScene() {
 
   if (petrolCarX <= petrolStopX && evCarX <= evStopX) carsStopped = true;
 
-  if (carsStopped) {
-    let pulse = map(sin(frameCount * 0.08), -1, 1, 80, 200);
-    noFill();
-    stroke(200, 80, 80, pulse); strokeWeight(3);
-    rect(petrolCarX - 5, 395, 155, 80, 8);
-    stroke(50, 200, 120, pulse);
-    rect(evCarX - 5, 395, 155, 80, 8);
-    noStroke();
-
-    if (chooseTextFading) chooseTextAlpha = max(0, chooseTextAlpha - 8);
-    if (chooseTextAlpha > 0) {
+  if (chooseTextFading) chooseTextAlpha = max(0, chooseTextAlpha - 8);
+  if (chooseTextAlpha > 0) {
       fill(20, 20, 20, chooseTextAlpha);
       textAlign(CENTER, CENTER);
       textSize(16); textStyle(BOLD);
-      text("Choose a car", width / 2, 375);
+      text("Choose a car", width / 2, 150);
       textStyle(NORMAL);
     }
-  }
+  
 }
 
 // =====================
@@ -366,19 +372,18 @@ function drawPetrolStation() {
 
   // "PETROL PUMP" sign
   fill(255, 0, 0); noStroke();
-  rect(150, 157, 200, 35, 5);
+  rect(150, 183, 200, 35, 5);
   fill("white"); textSize(17); textAlign(CENTER, CENTER); textStyle(BOLD);
-  text("PETROL PUMP", 250, 176);
+  text("Petrol Pump", 250, 196);
   textStyle(NORMAL);
 
-  // --- Petrol Pump Machine (student's design) ---
   // Pump body
   fill(200, 40, 40); noStroke();
-  rect(400, 240, 100, 180, 10);
+  rect(410, 265, 100, 180, 10);
   // Screen
   fill("white"); rect(418, 268, 62, 32);
   fill(0, 200, 50); textSize(9); textAlign(CENTER, CENTER);
-  text("Rs. 106.2/L", 449, 284);
+  text("Rs. 96.77/L", 449, 284);
   // Buttons row
   fill(40, 40, 40); noStroke();
   ellipse(428, 320, 12); ellipse(450, 320, 12); ellipse(472, 320, 12);
@@ -393,8 +398,8 @@ function drawPetrolStation() {
   let nozzleTipY = nozzleBaseY + 90;
   stationNozzleAngle = lerp(stationNozzleAngle, stationNozzleTarget, 0.05);
   stroke(60, 60, 60); strokeWeight(5); noFill();
-  bezier(nozzleBaseX, nozzleBaseY,
-         nozzleBaseX - 20, nozzleBaseY + 40,
+  bezier(nozzleBaseX+10, nozzleBaseY,
+         nozzleBaseX , nozzleBaseY + 40,
          nozzleTipX + 20, nozzleTipY - 30,
          nozzleTipX, nozzleTipY);
 
@@ -407,23 +412,21 @@ function drawPetrolStation() {
   rect(-7, -16, 14, 6, 2);
   pop();
 
-  // Oil drop symbol (student's design, centred on pump)
+  push()
   fill(255, 200, 0);
-  beginShape();
-  vertex(450, 365);
-  bezierVertex(425, 390, 430, 418, 450, 423);
-  bezierVertex(470, 418, 475, 390, 450, 365);
-  endShape(CLOSE);
-
+  noStroke()
+  ellipse(450, 395, 35, 45);
+  triangle(450, 360, 438, 388, 462, 388);
+  pop()
   // --- Refuelling progress ---
   if (stationRefuelling) {
-    stationFuelProgress += 0.8;
+    stationFuelProgress += 0.2;
     stationNozzleTarget = 40;
     // Fuel bar
-    fill(255); noStroke(); rect(160, 200, 200, 20, 5);
-    fill(255, 140, 0); rect(160, 200, map(stationFuelProgress, 0, 100, 0, 200), 20, 5);
+    fill(255); noStroke(); rect(160, 100, 200, 20, 5);
+    fill(255, 140, 0); rect(160, 100, map(stationFuelProgress, 0, 100, 0, 200), 20, 5);
     fill(20); textSize(12); textAlign(CENTER, CENTER);
-    text("Fuelling... " + int(stationFuelProgress) + "%", 260, 210);
+    text("Fuelling... " + int(stationFuelProgress) + "%", 260, 110);
     if (stationFuelProgress >= 100) {
       stationDone = true; stationRefuelling = false;
     }
@@ -439,13 +442,10 @@ function drawPetrolStation() {
     }
   }
 
-  // Draw car AFTER pump so it appears in front
-  // Flipped: translate to right edge of car, scale(-1,1) so car body goes left
-  // stationCarTargetX=180 → car spans x=180 to x=180+140=320, pump starts at 400 ✓
   push();
-  translate(stationCarX + 140, 430);
+  translate(stationCarX + 270, 430);
   scale(-1, 1);
-  // inline no-smoke petrol car body
+
   fill(180,40,40); noStroke(); rect(0,20,140,40,10);
   beginShape(); vertex(25,20);vertex(50,-10);vertex(100,-10);vertex(120,20); endShape(CLOSE);
   fill(180); quad(38,18,55,-5,75,-5,75,18); quad(82,18,82,-5,97,-5,112,18);
@@ -455,19 +455,10 @@ function drawPetrolStation() {
   fill(255,220,120); ellipse(0,25,10,10);
   pop();
 
-  // Glow pulse on pump when ready
-  if (stationClickReady && !stationRefuelling && !stationDone) {
-    stationPumpGlow += stationPumpGlowDir * 4;
-    if (stationPumpGlow > 200 || stationPumpGlow < 0) stationPumpGlowDir *= -1;
-    noFill(); stroke(255, 160, 0, stationPumpGlow); strokeWeight(3);
-    rect(398, 238, 104, 184, 12);
-    noStroke();
-  }
-
   // Prompt text
   stationClickAlpha = stationClickReady ? min(stationClickAlpha + 4, 255) : 0;
   fill(20, stationClickAlpha); noStroke(); textAlign(CENTER, CENTER); textSize(13); textStyle(BOLD);
-  if (!stationRefuelling && !stationDone) text("Click pump to fuel up", width / 2, 145);
+  if (!stationRefuelling && !stationDone) text("Click Petrol Pump To Fuel Up", (width / 2), 100);
   textStyle(NORMAL);
 
   // Done — proceed button
@@ -517,8 +508,8 @@ function drawEVStation() {
   stroke(100, 150, 200); strokeWeight(1.5); fill("white");
   rect(165, 242, 55, 50);
   line(193, 242, 193, 292); line(165, 267, 220, 267);
-  rect(350, 242, 55, 50);
-  line(377, 242, 377, 292); line(350, 267, 405, 267);
+  rect(310, 242, 55, 50);
+  line(335, 242, 335, 292); line(310, 267, 365, 267);
 
   // Door
   fill(180, 210, 240); rect(270, 315, 70, 127);
@@ -528,17 +519,17 @@ function drawEVStation() {
   fill(30, 120, 200); noStroke();
   rect(150, 157, 240, 35, 5);
   fill("white"); textSize(17); textAlign(CENTER, CENTER); textStyle(BOLD);
-  text("⚡ EV CHARGE POINT", 270, 176);
+  text("EV CHARGE POINT", 270, 176);
   textStyle(NORMAL);
 
   // --- Charging dock ---
   // Post
   fill(50, 60, 70); noStroke();
-  rect(395, 265, 14, 155);
+  rect(395, 265, 14, 205);
 
   // Dock unit
   fill(35, 50, 65); noStroke();
-  rect(380, 240, 100, 140, 12);
+  rect(395, 240, 70, 140, 12);
   // Screen
   fill(0, 30, 50); rect(395, 255, 70, 40);
   fill(50, 220, 120); textSize(9); textAlign(CENTER, CENTER);
@@ -554,7 +545,7 @@ function drawEVStation() {
 
   // Cable
   stroke(30, 200, 100); strokeWeight(5); noFill();
-  bezier(380, 340, 340, 370, 310, 390, evStationCarParked ? 345 : 280, 425);
+  bezier(395, 340, 340, 370, 310, 390, evStationCarParked ? 345 : 280, 425);
   // Connector
   fill(50, 220, 120); noStroke();
   ellipse(evStationCarParked ? 345 : 280, 425, 16, 16);
@@ -568,19 +559,9 @@ function drawEVStation() {
     noStroke();
   }
 
-  // Solar panels on roof (EV station flavour)
-  fill(30, 60, 120); noStroke();
-  for (let px = 155; px < 380; px += 45) {
-    rect(px, 168, 38, 48, 3);
-    stroke(50, 80, 160); strokeWeight(0.5);
-    line(px, 192, px + 38, 192);
-    line(px + 19, 168, px + 19, 216);
-    noStroke();
-  }
-
   // Charge progress
   if (evCharging) {
-    evChargeProgress += 0.6;
+    evChargeProgress += 0.1;
     fill(255); noStroke(); rect(160, 200, 200, 20, 5);
     fill(50, 220, 120); rect(160, 200, map(evChargeProgress, 0, 100, 0, 200), 20, 5);
     fill(20); textSize(12); textAlign(CENTER, CENTER);
@@ -597,29 +578,21 @@ function drawEVStation() {
     }
   }
   push();
-  translate(evStationCarX + 140, 430);
+  translate(evStationCarX + 240, 430);
   scale(-1, 1);
   drawEVCar(0, 0);
   pop();
 
-  // Glow on dock when ready
-  if (evStationClickReady && !evCharging && !evStationDone) {
-    let pg = map(sin(frameCount * 0.08), -1, 1, 60, 200);
-    noFill(); stroke(50, 220, 120, pg); strokeWeight(3);
-    rect(378, 238, 104, 144, 14);
-    noStroke();
-  }
-
   // Prompt text
   evStationClickAlpha = evStationClickReady ? min(evStationClickAlpha + 4, 255) : 0;
   fill(20, evStationClickAlpha); noStroke(); textAlign(CENTER, CENTER); textSize(13); textStyle(BOLD);
-  if (!evCharging && !evStationDone) text("Click charger to plug in", width / 2, 145);
+  if (!evCharging && !evStationDone) text("Click charger to plug in", width / 2, 125);
   textStyle(NORMAL);
 
   if (evStationDone) {
-    fill(0, 0, 0, 200); noStroke(); rect(160, 135, 220, 35, 8);
+    fill(0, 0, 0, 200); noStroke(); rect(160, 115, 220, 35, 8);
     fill(255); textSize(14); textAlign(CENTER, CENTER); textStyle(BOLD);
-    text("Charged up! ⚡ Drive", 270, 153);
+    text("Charged up! Click to Drive", 270, 133);
     textStyle(NORMAL);
   }
 }
@@ -628,52 +601,229 @@ function drawEVStation() {
 // SCENE 3 - DRIVE
 // =====================
 function drawDriveScene(carType) {
+
   let maxSpd = carType === "petrol" ? maxSpeedPetrol : maxSpeedEV;
-  let accel  = carType === "petrol" ? accelPetrol    : accelEV;
+  let accel  = carType === "petrol" ? accelPetrol : accelEV;
 
-  if (accelPressed)      speed = min(speed + accel, maxSpd);
-  else if (brakePressed) speed = max(speed - brakeStrength, 0);
-  else                   speed = max(speed - friction, 0);
+  // =====================
+  // SPEED LOGIC
+  // =====================
 
-  if (speed > 1) {
-    if (carType === "petrol") fuel    = max(fuel    - fuelDrain    * (speed / maxSpd), 0);
-    else                      battery = max(battery - batteryDrain * (speed / maxSpd), 0);
-    distanceTravelled += speed * 0.01;
+  if (accelPressed) {
+
+    speed = min(speed + accel, maxSpd);
+
+  } 
+  
+  else if (brakePressed) {
+
+    speed = max(speed - brakeStrength, 0);
+
+  } 
+  
+  else {
+
+    speed = max(speed - friction, 0);
   }
 
-  roadOffset  = (roadOffset  + speed * 0.5) % 80;
-  treeOffset  = (treeOffset  + speed * 0.3) % 1000;
+  // =====================
+  // SOUND SYSTEM
+  // =====================
+
+  if (carType === "petrol") {
+
+    // stop EV sound
+    if (evSound.isPlaying()) {
+      evSound.stop();
+    }
+
+    if (speed > 2) {
+
+      if (!petrolSound.isPlaying()) {
+
+        petrolSound.loop();
+      }
+
+      petrolSound.setVolume(
+        map(speed, 0, maxSpd, 0.15, 0.9)
+      );
+
+      petrolSound.rate(
+        map(speed, 0, maxSpd, 0.8, 1.4)
+      );
+    } 
+    
+    else {
+
+      petrolSound.stop();
+    }
+  }
+
+  else {
+
+    // stop petrol sound
+    if (petrolSound.isPlaying()) {
+      petrolSound.stop();
+    }
+
+    if (speed > 2) {
+
+      if (!evSound.isPlaying()) {
+
+        evSound.loop();
+      }
+
+      evSound.setVolume(
+        map(speed, 0, maxSpd, 0.08, 0.5)
+      );
+
+      evSound.rate(
+        map(speed, 0, maxSpd, 0.9, 1.25)
+      );
+    } 
+    
+    else {
+
+      evSound.stop();
+    }
+  }
+
+  // =====================
+  // FUEL / BATTERY
+  // =====================
+
+  if (speed > 1) {
+
+    let distanceStep = speed * 0.00035;
+
+    distanceTravelled += distanceStep;
+
+    if (carType === "petrol") {
+
+      let fuelUsed = distanceStep / petrolMileage;
+
+      fuel = max(fuel - fuelUsed, 0);
+
+    } 
+    
+    else {
+
+      let batteryUsed = distanceStep / evEfficiency;
+
+      battery = max(battery - batteryUsed, 0);
+    }
+  }
+
+  // =====================
+  // ROAD MOTION
+  // =====================
+
+  roadOffset = (roadOffset + speed * 0.5) % 80;
+
+  treeOffset = (treeOffset + speed * 0.3) % 1000;
+
+  // =====================
+  // RENDER
+  // =====================
 
   drawRoad(carType);
-  // Trees drawn before interior, clipped to windshield
+
   drawTreesClipped();
+
   drawCarInterior(carType);
+
   drawDashboard(carType);
+
   drawNewsLED(carType);
-  // Pedal visual feedback replaces GO/STOP buttons
+
   drawPedals(carType);
 
-  fill(180, 180); noStroke(); textAlign(CENTER); textSize(10);
-  text("Press pedals to drive   |   tap upper area for facts", width / 2, 195);
+  // =====================
+  // UI TEXT
+  // =====================
 
-  // P1: second-path intro card overlay
+  fill(180, 180);
+
+  noStroke();
+
+  textAlign(CENTER);
+
+  textSize(10);
+
+  text(
+    "Press pedals to drive   |   tap upper area for facts",
+    width / 2,
+    195
+  );
+
+  // =====================
+  // SECOND PATH CARD
+  // =====================
+
   if (showSecondPathCard) {
+
     secondPathCardTimer++;
+
     if (secondPathCardTimer < 120) {
-      secondPathCardAlpha = min(secondPathCardAlpha + 6, 220);
-    } else {
-      secondPathCardAlpha = max(secondPathCardAlpha - 5, 0);
+
+      secondPathCardAlpha = min(
+        secondPathCardAlpha + 6,
+        220
+      );
+
+    } 
+    
+    else {
+
+      secondPathCardAlpha = max(
+        secondPathCardAlpha - 5,
+        0
+      );
     }
-    if (secondPathCardAlpha <= 0 && secondPathCardTimer > 120) {
+
+    if (
+      secondPathCardAlpha <= 0 &&
+      secondPathCardTimer > 120
+    ) {
+
       showSecondPathCard = false;
-    } else {
-      let label = carType === "ev" ? "⚡ Now experience the EV" : "⛽ Now experience the petrol car";
-      noStroke(); fill(0, secondPathCardAlpha);
+
+    } 
+    
+    else {
+
+      let label =
+        carType === "ev"
+          ? "⚡ Now experience the EV"
+          : "⛽ Now experience the petrol car";
+
+      noStroke();
+
+      fill(0, secondPathCardAlpha);
+
       rect(110, 210, 380, 60, 10);
-      fill(255, secondPathCardAlpha); textAlign(CENTER, CENTER); textStyle(BOLD); textSize(16);
+
+      fill(255, secondPathCardAlpha);
+
+      textAlign(CENTER, CENTER);
+
+      textStyle(BOLD);
+
+      textSize(16);
+
       text(label, width / 2, 235);
-      textStyle(NORMAL); fill(180, secondPathCardAlpha); textSize(11);
-      text("See how the other side drives", width / 2, 255);
+
+      textStyle(NORMAL);
+
+      fill(180, secondPathCardAlpha);
+
+      textSize(11);
+
+      text(
+        "See how the other side drives",
+        width / 2,
+        255
+      );
     }
   }
 }
@@ -755,7 +905,7 @@ function drawTreesClipped() {
 }
 
 function drawCarInterior(carType) {
-  fill(84, 82, 82); noStroke();
+  fill(84, 82, 82);
   beginShape();
   vertex(0,500); vertex(0,205); vertex(60,190);
   vertex(0,50); vertex(0,0); vertex(5,0); vertex(100,190);
@@ -774,9 +924,8 @@ function drawCarInterior(carType) {
   fill(carType === "ev" ? color(45,62,80) : color(68,62,62));
   rect(250, 316, 100, 184, 10);
 
-  fill(carType === "ev" ? color(95,115,185,160) : color(90,105,65,160));
-  beginShape();
-  vertex(95,190); vertex(250,0); vertex(350,0); vertex(505,190);
+  fill(carType === "ev" ? color(84, 82, 82) : color(84, 82, 82));
+
   endShape(CLOSE);
 
   fill(210,210,210);
@@ -799,28 +948,9 @@ function drawCarInterior(carType) {
   fill(112,108,108);
   circle(90, 220, 30); circle(150, 220, 30);
   fill(0); circle(90, 220, 22); circle(150, 220, 22);
-  stroke("grey"); strokeWeight(1);
-  line(84,212,96,212); line(80,215,100,215); line(80,218,100,218);
-  line(80,221,100,221); line(80,224,100,224); line(84,227,96,227);
-  line(144,212,156,212); line(140,215,160,215); line(140,218,160,218);
-  line(140,221,160,221); line(140,224,160,224); line(144,227,156,227);
-
-  fill(112,108,108); noStroke();
-  beginShape(); vertex(460,316);vertex(470,316);vertex(470,320);vertex(480,320);vertex(480,360);vertex(455,360);vertex(455,320);vertex(460,320); endShape(CLOSE);
-  beginShape(); vertex(500,316);vertex(510,316);vertex(510,320);vertex(520,320);vertex(520,350);vertex(495,350);vertex(495,320);vertex(500,320); endShape(CLOSE);
-  stroke(80); strokeWeight(1);
-  line(500,330,515,330); line(500,340,515,340);
-  line(460,330,475,330); line(460,340,475,340); line(460,350,475,350);
-
-  fill(112,108,108); noStroke();
-  rect(60,430,170,70,15,15,5,5);
-  rect(370,430,170,70,15,15,5,5);
-
-  fill(255); noStroke();
-  rect(290,10,20,20); rect(290,50,20,40); rect(290,110,20,80);
 }
 
-// Pedals replacing GO/STOP buttons
+
 function drawPedals(carType) {
   // ---- Accelerator pedal (right floor) ----
   let aPressed = accelPressed;
@@ -1225,7 +1355,7 @@ function drawEnding() {
     ["Energy source", "GRID / SOLAR"],
     ["Price stability", "LOW"],
     ["Cost per 100km", "~₹80"],
-    ["Emissions", "ZERO"]
+    ["Emissions", "Very Low"]
   ];
   for (let i = 0; i < eRows.length; i++) {
     fill(160, ca); textSize(8.5); textAlign(RIGHT, CENTER);
@@ -1515,14 +1645,4 @@ function drawClouds() {
   ellipse(420,100,60,45);ellipse(460,100,75,55);ellipse(500,100,60,45);
   ellipse(260,60,50,40);ellipse(295,60,65,50);ellipse(330,60,50,40);
   pop();
-}
-
-function playTextTone(freq) {
-  let osc = new p5.Oscillator();
-  osc.setType('sine'); osc.freq(freq); osc.amp(0.2,0.2); osc.start(); osc.amp(0,1); osc.stop(1.2);
-}
-
-function playImpactSound() {
-  let osc = new p5.Oscillator();
-  osc.setType('triangle'); osc.freq(60); osc.amp(0.5,0.05); osc.start(); osc.freq(25,0.6); osc.amp(0,1.5); osc.stop(2);
 }
